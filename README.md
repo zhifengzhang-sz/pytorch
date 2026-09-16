@@ -70,48 +70,79 @@ fine if the project needs to be pip-installable.
 
 ## GPU driver on WSL2
 
-The GPU stack is split across three layers, and only one of them is in the
-image:
+### The picture
 
-| Layer | Lives in | Updated by |
+There are two moments that matter: **build time**, when `make build` produces
+the image, and **start time**, when `make up` creates a container from it.
+Different things enter at each moment.
+
+```
+                 BUILD TIME  (make build)              START TIME  (make up)
+                 ─────────────────────────             ─────────────────────────
+ inputs          Dockerfile                            the image
+                 requirements.txt                      /usr/lib/wsl/lib/*  (driver stubs)
+                 .env: UID, GID, TORCH_VERSION         GPU device nodes
+                 base image nvidia/cuda:12.8.1-...
+                          │                                     │
+                          ▼                                     ▼
+ result          image pytorch-dev:cu128               running container
+                 (CUDA 12.8 toolkit, cuDNN, nvcc,      (image + driver mounted in
+                  torch cu128, requirements)            by the Container Toolkit)
+```
+
+The NVIDIA driver is **not** an input to the build. It is installed on
+Windows, WSL generates matching stubs under `/usr/lib/wsl/lib`, and the
+Container Toolkit mounts those stubs into the container every time it
+starts. The image never contains a driver, and no driver package should ever
+be installed inside Ubuntu (it would shadow the WSL stubs and break CUDA).
+
+| Layer | Lives in | Enters the container at | Updated by |
+| --- | --- | --- | --- |
+| NVIDIA driver | Windows | start time (mounted) | Windows driver installer |
+| Driver stubs `libcuda.so*` | WSL `/usr/lib/wsl/lib` | start time (mounted) | WSL, automatically |
+| CUDA 12.8 toolkit, cuDNN, nvcc | the image | build time | `make build` |
+| torch, requirements | the image | build time | `make build` |
+
+`nvidia-smi` in WSL or in the container always reports the Windows driver.
+
+### Consequences
+
+**A Windows driver update does not change the image.** `make build` after a
+driver update finds none of its inputs changed and does nothing. What you
+need instead is a container restart, so the new stubs are mounted:
+
+```bash
+make down && make up
+make gpu
+```
+
+If `nvidia-smi` inside WSL still shows the old driver, WSL itself is stale:
+run `wsl --shutdown` from a Windows terminal, reopen Ubuntu, then `make up`.
+
+**`make build` rebuilds only the layers whose inputs changed.** Docker caches
+every Dockerfile step. Editing `requirements.txt` reruns just the final pip
+install; the apt packages, venv and the large torch download stay cached.
+Changing `UID`/`GID` reruns almost everything, since the user is created
+early. Running `make build` with nothing changed is a no-op.
+
+**The one compatibility rule.** The CUDA version the driver supports (top
+right of `nvidia-smi`) must be at least the toolkit version in the image
+(12.8). Newer drivers are backward compatible, so a driver reporting CUDA
+13.x is fine.
+
+### When to run `make build`
+
+| Situation | Rebuild? | What to do |
 | --- | --- | --- |
-| NVIDIA driver (kernel + `libcuda`) | **Windows** | GeForce/Studio driver installer on Windows |
-| Driver stubs `/usr/lib/wsl/lib/libcuda.so*` | WSL, generated from the Windows driver | automatically by WSL |
-| CUDA toolkit 12.8, cuDNN, nvcc, torch | **the Docker image** | `make build` |
-
-WSL2 does **not** run its own GPU driver. Never install `nvidia-driver-*`
-packages inside Ubuntu; they would shadow the WSL stubs and break CUDA. The
-NVIDIA Container Toolkit mounts the WSL stubs into the container when it
-starts, so the image carries the toolkit but no driver. `nvidia-smi` inside
-WSL or the container reports the Windows driver.
-
-The one compatibility rule: the driver's supported CUDA version (top right of
-`nvidia-smi`) must be **at least** the toolkit version in the image (12.8).
-Newer drivers are backward compatible, so a driver that reports CUDA 13.x is
-fine.
-
-### When to rebuild the image
-
-Rebuild (`make build`) only when the image contents change:
-
-- `Dockerfile` edited, e.g. a new CUDA base image or pinned `TORCH_VERSION`
-- `requirements.txt` edited
-- `.env` `UID`/`GID` changed (they are baked in at build time)
-
-Do **not** rebuild for:
-
-- a Windows NVIDIA driver update
-- a WSL or Windows update
-- a Docker Engine or Container Toolkit update
-
-After any of those, restart the container so the fresh driver stubs get
-mounted: `make down && make up`. If `nvidia-smi` in WSL itself looks stale
-after a driver update, run `wsl --shutdown` from Windows and reopen the distro.
-
-A driver update becomes *necessary* only when you want a newer CUDA toolkit in
-the image than the current driver supports. Update the Windows driver first,
-confirm `nvidia-smi` reports the required CUDA version, then bump the base
-image in `Dockerfile` and `make build`.
+| Edited `requirements.txt` | yes | `make build` |
+| Edited `Dockerfile` (new base image, pinned torch) | yes | `make build` |
+| Changed `UID`/`GID`/`TORCH_VERSION` in `.env` | yes | `make build` |
+| Updated the Windows NVIDIA driver | no | `make down && make up` |
+| Updated WSL or Windows | no | `wsl --shutdown`, then `make up` |
+| Updated Docker or the Container Toolkit | no | `make down && make up` |
+| Want a newer CUDA toolkit than the driver supports | yes, after driver | update Windows driver, check `nvidia-smi`, bump base image, `make build` |
+| Want the latest patch of the same base image tag | yes | `docker compose build --pull` |
+| Want everything installed fresh, ignoring the cache | yes | `docker compose build --no-cache` |
 
 ### If `make gpu` fails
 
