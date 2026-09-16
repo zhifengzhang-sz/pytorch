@@ -20,6 +20,7 @@ Targets NVIDIA Blackwell GPUs (sm_120, e.g. RTX 5090) with CUDA 12.8.
 ## Architecture
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': '#282c34', 'primaryColor': '#3e4451', 'primaryTextColor': '#abb2bf', 'primaryBorderColor': '#5c6370', 'secondaryColor': '#2c313a', 'tertiaryColor': '#2c313a', 'lineColor': '#61afef', 'textColor': '#abb2bf', 'titleColor': '#abb2bf', 'clusterBkg': '#21252b', 'clusterBorder': '#5c6370', 'edgeLabelBackground': '#282c34', 'fontFamily': 'Menlo, Consolas, monospace'}}}%%
 flowchart TB
     subgraph win["Windows host"]
         drv["NVIDIA driver<br/>(installed on Windows)"]
@@ -118,6 +119,7 @@ the image, and **start time**, when `make up` creates a container from it.
 Different things enter at each moment.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': '#282c34', 'primaryColor': '#3e4451', 'primaryTextColor': '#abb2bf', 'primaryBorderColor': '#5c6370', 'secondaryColor': '#2c313a', 'tertiaryColor': '#2c313a', 'lineColor': '#61afef', 'textColor': '#abb2bf', 'titleColor': '#abb2bf', 'clusterBkg': '#21252b', 'clusterBorder': '#5c6370', 'edgeLabelBackground': '#282c34', 'fontFamily': 'Menlo, Consolas, monospace'}}}%%
 flowchart TB
     subgraph build["BUILD-TIME INPUTS  (make build)"]
         bi1["Dockerfile"]
