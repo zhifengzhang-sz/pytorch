@@ -17,6 +17,47 @@ pytorch/                 this repo  (github.com/zhifengzhang-sz/pytorch)
 
 Targets NVIDIA Blackwell GPUs (sm_120, e.g. RTX 5090) with CUDA 12.8.
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph win["Windows host"]
+        drv["NVIDIA driver<br/>(installed on Windows)"]
+        gpu["GPU (sm_120)"]
+    end
+
+    subgraph wsl["WSL2 · Ubuntu"]
+        stubs["/usr/lib/wsl/lib<br/>libcuda.so stubs"]
+        docker["Docker Engine +<br/>NVIDIA Container Toolkit"]
+        subgraph repo["~/dev/pytorch  (this repo, github.com/zhifengzhang-sz/pytorch)"]
+            envfiles["Dockerfile · docker-compose.yml<br/>requirements.txt · pyproject.toml · Makefile"]
+            subgraph projects["projects/  (gitignored)"]
+                p1["project1/<br/>own GitHub repo"]
+                p2["project2/<br/>own GitHub repo"]
+            end
+        end
+    end
+
+    subgraph ctr["container  pytorch-dev  (image pytorch-dev:cu128)"]
+        venv["/opt/venv<br/>CUDA 12.8 · cuDNN · torch cu128 · requirements"]
+        ws["/workspace  (bind mount of the repo)"]
+        cache["/cache/*  (named volumes:<br/>huggingface, torch, pip)"]
+    end
+
+    drv -- "WSL generates" --> stubs
+    stubs -- "mounted at container start" --> ctr
+    gpu -- "passed through" --> ctr
+    envfiles -- "make build" --> venv
+    repo -- "bind mount" --> ws
+    docker -- "make up / docker compose" --> ctr
+```
+
+- **Environment** (this repo) is built into the image and drives the container.
+- **Projects** are separate GitHub repos cloned into `projects/`; they reach the
+  container through the bind mount, never through the image.
+- **Driver** lives on Windows and is mounted in at start time, never built in.
+- **Caches** persist in named volumes across image rebuilds.
+
 ## Requirements
 
 - Docker with the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
@@ -76,18 +117,25 @@ There are two moments that matter: **build time**, when `make build` produces
 the image, and **start time**, when `make up` creates a container from it.
 Different things enter at each moment.
 
-```
-                 BUILD TIME  (make build)              START TIME  (make up)
-                 ─────────────────────────             ─────────────────────────
- inputs          Dockerfile                            the image
-                 requirements.txt                      /usr/lib/wsl/lib/*  (driver stubs)
-                 .env: UID, GID, TORCH_VERSION         GPU device nodes
-                 base image nvidia/cuda:12.8.1-...
-                          │                                     │
-                          ▼                                     ▼
- result          image pytorch-dev:cu128               running container
-                 (CUDA 12.8 toolkit, cuDNN, nvcc,      (image + driver mounted in
-                  torch cu128, requirements)            by the Container Toolkit)
+```mermaid
+flowchart TB
+    subgraph build["BUILD-TIME INPUTS  (make build)"]
+        bi1["Dockerfile"]
+        bi2["requirements.txt"]
+        bi3[".env: UID, GID, TORCH_VERSION"]
+        bi4["base image<br/>nvidia/cuda:12.8.1-cudnn-devel"]
+    end
+    img["image pytorch-dev:cu128<br/>CUDA 12.8 toolkit · cuDNN · nvcc<br/>torch cu128 · requirements"]
+    subgraph start["START-TIME INPUTS  (make up) — mounted, never in the image"]
+        si1["driver stubs<br/>/usr/lib/wsl/lib"]
+        si2["GPU device nodes"]
+        si3["repo bind mount → /workspace"]
+        si4["cache volumes → /cache/*"]
+    end
+    ctr["running container<br/>pytorch-dev"]
+    bi1 & bi2 & bi3 & bi4 --> img
+    img ==> ctr
+    si1 & si2 & si3 & si4 --> ctr
 ```
 
 The NVIDIA driver is **not** an input to the build. It is installed on
