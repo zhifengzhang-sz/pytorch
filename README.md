@@ -1,8 +1,19 @@
 # pytorch
 
 A single reproducible GPU dev environment for all my PyTorch projects.
-Each project lives under `projects/<name>/` and shares the container, the
-Python environment, and the tooling config in this repo.
+
+This repo holds only the environment: the Docker image, compose service,
+Makefile wrappers, and shared lint/test config. The actual projects are
+separate GitHub repositories, cloned side by side into `projects/<name>/`,
+where they share the container, the Python venv, and the tooling. Nothing
+under `projects/` is committed here.
+
+```
+pytorch/                 this repo  (github.com/zhifengzhang-sz/pytorch)
+└── projects/
+    ├── project1/        its own repo, cloned here
+    └── project2/        its own repo, cloned here
+```
 
 Targets NVIDIA Blackwell GPUs (sm_120, e.g. RTX 5090) with CUDA 12.8.
 
@@ -15,6 +26,8 @@ Targets NVIDIA Blackwell GPUs (sm_120, e.g. RTX 5090) with CUDA 12.8.
 ## Quick start
 
 ```bash
+git clone git@github.com:zhifengzhang-sz/pytorch.git
+cd pytorch
 cp .env.example .env   # set UID/GID to `id -u` / `id -g` if not 1000
 make build             # one-time, downloads several GB
 make gpu               # prints torch version and GPU name
@@ -22,6 +35,9 @@ make shell             # bash inside the container, repo mounted at /workspace
 ```
 
 Or open the folder in VS Code and choose **Reopen in Container**.
+
+Then clone your projects into `projects/` (see below). On a new machine that
+is the whole setup: clone this repo, clone the projects, `make build`.
 
 ## Everyday commands
 
@@ -36,7 +52,8 @@ Or open the folder in VS Code and choose **Reopen in Container**.
 
 Each project is its own git repository, cloned into `projects/<name>/`. That
 directory is gitignored here, so a project's code and history live only in its
-own remote; this repo tracks just the environment.
+own remote; this repo tracks just the environment. A project's visibility on
+GitHub is independent of this repo's.
 
 ```bash
 cd projects
