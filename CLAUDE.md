@@ -9,6 +9,7 @@ A shared GPU dev container for PyTorch work. Each project is a separate git repo
 ## Hard constraints
 
 - **Target GPU is NVIDIA Blackwell (sm_120).** PyTorch must be installed from the cu128 wheel index, never plain PyPI. Do not change the base image's CUDA major/minor without checking sm_120 support.
+- **The GPU driver lives on Windows (WSL2).** Never install NVIDIA driver packages inside WSL or the image; the Container Toolkit mounts the WSL driver stubs at run time. The image only needs rebuilding when `Dockerfile`, `requirements.txt`, or `.env` UID/GID change, never after a driver, WSL, or Docker update (restart the container instead). See README "GPU driver on WSL2".
 - **Nothing runs on the host.** All Python, tests, and linting run inside the container. Host Python is not the project interpreter.
 - **Keep the repo portable.** No usernames, home paths, or host-specific values in tracked files. The container user is the generic `dev`; UID/GID come from `.env` (gitignored, see `.env.example`) or default to 1000.
 - **Caches live at `/cache/*`** (`HF_HOME`, `TORCH_HOME`, `PIP_CACHE_DIR`), backed by named volumes. Do not point them at a home directory.
