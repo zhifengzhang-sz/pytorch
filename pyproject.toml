@@ -1,0 +1,25 @@
+# Shared tooling config for every project in this repo.
+# Individual projects live under projects/<name>/ and may add their own
+# pyproject.toml if they need to be installable packages.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"   # Ubuntu 24.04 python3
+extend-exclude = ["data", "checkpoints", "runs", "outputs"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "NPY",      # numpy-specific
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["projects"]
+
+[tool.pytest.ini_options]
+testpaths = ["projects"]
+addopts = "-ra -q"

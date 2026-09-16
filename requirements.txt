@@ -1,0 +1,26 @@
+# Core scientific stack
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+
+# Notebooks inside VS Code
+ipykernel
+jupyterlab
+
+# Quality of life
+tqdm
+rich
+python-dotenv
+
+# Dev tooling
+ruff
+pytest
+
+# Uncomment what you need
+# transformers
+# datasets
+# accelerate
+# tensorboard
+# wandb

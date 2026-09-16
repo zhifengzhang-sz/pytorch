@@ -1,0 +1,35 @@
+# Local environment
+.env
+.venv/
+
+# Projects are separate git repos cloned into projects/<name>/. Their code is
+# tracked in their own remotes, not here; only the placeholder is committed.
+projects/*
+!projects/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data, weights, experiment outputs (never commit; use DVC/HF Hub/etc.)
+data/
+checkpoints/
+runs/
+outputs/
+wandb/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.h5
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store

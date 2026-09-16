@@ -1,0 +1,42 @@
+services:
+  dev:
+    build:
+      context: .
+      args:
+        # Match the host user so bind-mounted files are not root-owned.
+        # Values come from .env (copy .env.example); fall back to 1000.
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+        TORCH_VERSION: ${TORCH_VERSION:-}
+    image: pytorch-dev:cu128
+    container_name: pytorch-dev
+    # Keep the container alive; VS Code / `docker compose exec` attach to it.
+    command: sleep infinity
+    stdin_open: true
+    tty: true
+    # GPU access (requires nvidia-container-toolkit on the host).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # DataLoader workers pass tensors through /dev/shm; Docker's 64 MB default
+    # is far too small.
+    shm_size: "16gb"
+    volumes:
+      - .:/workspace
+      # Persist model/dataset/wheel caches across rebuilds. Paths match the
+      # HF_HOME / TORCH_HOME / PIP_CACHE_DIR env set in the Dockerfile.
+      - hf-cache:/cache/huggingface
+      - torch-cache:/cache/torch
+      - pip-cache:/cache/pip
+    ports:
+      - "8888:8888"   # JupyterLab
+      - "6006:6006"   # TensorBoard
+
+volumes:
+  hf-cache:
+  torch-cache:
+  pip-cache:
